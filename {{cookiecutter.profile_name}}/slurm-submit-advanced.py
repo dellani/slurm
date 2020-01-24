@@ -32,14 +32,32 @@ def _get_cluster_configuration(partition):
     res = subprocess.run(cmd, check=True, shell=True, stdout=subprocess.PIPE)
     m = re.search("(?P<partition>\S+)\s+(?P<cpus>\d+)\s+(?P<memory>\S+)\s+((?P<days>\d+)-)?(?P<hours>\d+):(?P<minutes>\d+):(?P<seconds>\d+)\s+(?P<size>\S+)\s+(?P<maxcpus>\S+)",
                   res.stdout.decode())
-    d = m.groupdict()
-    if not 'days' in d or not d['days']:
-        d['days'] = 0
-    d["time"] = int(d['days']) * 24 * 60 + \
-        int(d['hours']) * 60 + int(d['minutes']) + \
-        math.ceil(int(d['seconds']) / 60)
-    return d
+    #some slurm setups returns for *time* and *size* *infinite* and *1-infinite*,
+    #respectively, values that break the regular expression above
+    if m is not None:
+        d = m.groupdict()
+        if not 'days' in d or not d['days']:
+            d['days'] = 0
 
+        d["time"] = int(d['days']) * 24 * 60 + \
+            int(d['hours']) * 60 + int(d['minutes']) + \
+            math.ceil(int(d['seconds']) / 60)
+    else:
+        cmd = " ".join(
+            ["sinfo -e -O \"partition,cpus,memory,maxcpuspernode\"",
+             "-h -p {}".format(partition)])
+        res = subprocess.run(cmd, check=True, shell=True, stdout=subprocess.PIPE)
+        m = re.search("(?P<partition>\S+)\s+(?P<cpus>\d+)\s+(?P<memory>\S+)\s+(?P<maxcpus>\S+)",
+            res.stdout.decode())
+
+        d = m.groupdict()
+        d['days'] = 0
+        d['hours'] = 0
+        d['minutes'] = 0
+        d['seconds'] = 0
+        d["time"] = 10**100 # not even near to infinite but far enough from 0 ;)
+
+    return d
 
 def _get_features_and_memory(partition):
     """Retrieve features and memory for a partition in the cluster
@@ -156,11 +174,15 @@ slurm_parser.add_argument(
     "-C", "--constraint", help="specify a list of constraints")
 slurm_parser.add_argument(
     "--mem", help="minimum amount of real memory")
+slurm_parser.add_argument(
+    "--gres", help="request nodes with specific generic resources")
+slurm_parser.add_argument(
+    "--ntasks-per-node", help="request that ntasks be invoked on each node")
 
 opt_keys = ["array", "account", "begin", "cpus_per_task",
             "dependency", "workdir", "error", "job_name", "mail_type",
             "mail_user", "ntasks", "nodes", "output", "partition",
-            "quiet", "time", "wrap", "constraint", "mem"]
+            "quiet", "time", "wrap", "constraint", "mem", "gres", "ntasks_per_node"]
 
 args = parser.parse_args()
 
@@ -286,4 +308,3 @@ try:
 except Exception as e:
     print(e)
     raise
-
