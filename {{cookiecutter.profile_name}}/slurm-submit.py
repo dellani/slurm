@@ -60,6 +60,11 @@ slurm_parser.add_argument(
     "-C", "--constraint", help="specify a list of constraints")
 slurm_parser.add_argument(
     "--mem", help="minimum amount of real memory")
+slurm_parser.add_argument(
+    "--gres", help="request nodes with specific generic resources")
+slurm_parser.add_argument(
+    "--ntasks-per-node", help="request that ntasks be invoked on each node")
+
 
 args = parser.parse_args()
 
@@ -101,7 +106,7 @@ if "threads" in job_properties:
 opt_keys = ["array", "account", "begin", "cpus_per_task",
             "dependency", "workdir", "error", "job_name", "mail_type",
             "mail_user", "ntasks", "nodes", "output", "partition",
-            "quiet", "time", "wrap", "constraint", "mem"]
+            "quiet", "time", "wrap", "constraint", "mem", "gres", "ntasks_per_node"]
 
 # Set default partition
 if arg_dict["partition"] is None:
